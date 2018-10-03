@@ -1,0 +1,7 @@
+*.egg-info/
+*.pyc
+.ipynb_checkpoints/
+/env/
+/jira-api.ipynb
+/.coverage
+/.tox/
