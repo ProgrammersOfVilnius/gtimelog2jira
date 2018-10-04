@@ -12,6 +12,23 @@ import requests_mock
 import gtimelog2jira
 
 
+def test_parse_timelog():
+    entries = [
+        gtimelog2jira.Entry(datetime.datetime(2014, 3, 31, 14, 48),
+                            datetime.datetime(2014, 3, 31, 17, 10),
+                            'project2: ABC-1 some work'),
+        gtimelog2jira.Entry(datetime.datetime(2014, 3, 31, 17, 48),
+                            datetime.datetime(2014, 3, 31, 18, 10),
+                            'project3: XYZ-1 other work'),
+        gtimelog2jira.Entry(datetime.datetime(2014, 3, 31, 18, 48),
+                            datetime.datetime(2014, 3, 31, 19, 10),
+                            'project2: not working on ABC-1 actually **'),
+    ]
+    assert list(gtimelog2jira.parse_timelog(entries, ['ABC'], {})) == [
+        gtimelog2jira.WorkLog(entries[0], 'ABC-1', 'ABC-1 some work'),
+    ]
+
+
 class Route:
 
     def __init__(self, handler, params=None):

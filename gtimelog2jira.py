@@ -32,7 +32,14 @@ class WorkLog:
         self.seconds = int((entry.end - entry.start).total_seconds())
         self.issue = issue
         self.comment = comment
-        self.worklog_id = None
+
+    def __repr__(self):
+        return '<WorkLog: %s, %s>' % (self.issue, self.comment)
+
+    def __eq__(self, other):
+        if not isinstance(other, WorkLog):
+            return NotImplemented
+        return self.entry == other.entry
 
 
 class ConfigurationError(Exception):
@@ -44,6 +51,7 @@ def read_config(config_file):
         raise ConfigurationError("Configuration file %s does not exist." % config_file)
 
     config = configparser.ConfigParser()
+    config.optionxform = str  # do not lowercase the aliases section!
     config.read(config_file)
 
     if not config.has_section('gtimelog2jira'):
@@ -66,6 +74,11 @@ def read_config(config_file):
         raise ConfigurationError("List of projects is not specified, set Jira projects via gtimelog2jira.projects setting.")
 
     projects = set(projects.split())
+
+    if config.has_section('gtimelog2jira:aliases'):
+        aliases = dict(config.items('gtimelog2jira:aliases'))
+    else:
+        aliases = {}
 
     if not timelog:
         timelog = config_file.parent / 'timelog.txt'
@@ -122,6 +135,7 @@ def read_config(config_file):
         'timelog': timelog,
         'jiralog': jiralog,
         'projects': projects,
+        'aliases': aliases,
         'session': session,
     }
 
@@ -166,8 +180,10 @@ def read_timelog(f, midnight='06:00', tz=None):
         yield Entry(last, last, last_note)
 
 
-def parse_timelog(entries, projects):
-    issue_re = re.compile(r'\b(%s)-\d+' % '|'.join(projects))
+def parse_timelog(entries, projects, aliases):
+    issue_re = re.compile(r'\b(?:%s)' % '|'.join(
+        [r'(?:%s)-\d+' % '|'.join(projects)] + list(aliases)
+    ))
 
     for entry in entries:
         # Skip all non-work related entries.
@@ -180,6 +196,9 @@ def parse_timelog(entries, projects):
             break
         else:
             continue
+
+        # Resolve aliases
+        issue = aliases.get(issue, issue)
 
         # Clean up comment from categories and from issue id.
         comment = entry.message.rsplit(':', 1)[1].strip()
@@ -347,7 +366,7 @@ def main(argv=None, stdout=sys.stdout):
 
     with config['timelog'].open() as f:
         entries = read_timelog(f)
-        entries = parse_timelog(entries, config['projects'])
+        entries = parse_timelog(entries, config['projects'], config['aliases'])
         entries = filter_timelog(entries, since=args.since, until=args.until, issue=args.issue)
         entries = sync_with_jira(config['session'], config['api'], entries, dry_run=args.dry_run,
                                  author_name=config['self']['name'])
