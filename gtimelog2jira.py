@@ -117,6 +117,7 @@ def read_config(config_file):
         'url': url,
         'api': api,
         'credentials': (username, password),
+        'self': resp.json(),
         'timelog': timelog,
         'jiralog': jiralog,
         'projects': projects,
@@ -207,19 +208,21 @@ def filter_timelog(entries, *, since=None, until=None, issue=None):
         yield entry
 
 
-def get_jira_worklog(session, api_url, issue):
+def get_jira_worklog(session, api_url, issue, author_name=None):
     resp = session.get(api_url + '/issue/' + issue + '/worklog')
     for worklog in resp.json().get('worklogs', []):
+        if author_name and worklog['author']['name'] != author_name:
+            continue
         started = datetime.datetime.strptime(worklog['started'], '%Y-%m-%dT%H:%M:%S.%f%z')
         ended = started + datetime.timedelta(seconds=worklog['timeSpentSeconds'])
         yield JiraWorkLog(worklog['id'], started, ended)
 
 
-def sync_with_jira(session, api_url, entries, dry_run=False):
+def sync_with_jira(session, api_url, entries, dry_run=False, author_name=None):
     sort_key = operator.attrgetter('issue')
     entries = sorted(entries, key=sort_key)
     for issue, entries in itertools.groupby(entries, key=sort_key):
-        worklog = list(get_jira_worklog(session, api_url, issue))
+        worklog = list(get_jira_worklog(session, api_url, issue, author_name))
         for entry in entries:
             overlap = [x.id for x in worklog if x.start >= entry.start and x.end <= entry.end]
             if overlap:
@@ -339,7 +342,8 @@ def main(argv=None, stdout=sys.stdout):
         entries = read_timelog(f)
         entries = parse_timelog(entries, config['projects'])
         entries = filter_timelog(entries, since=args.since, until=args.until, issue=args.issue)
-        entries = sync_with_jira(config['session'], config['api'], entries, dry_run=args.dry_run)
+        entries = sync_with_jira(config['session'], config['api'], entries, dry_run=args.dry_run,
+                                 author_name=config['self']['name'])
         entries = log_jira_sync(entries, config['jiralog'])
         show_results(entries, stdout)
 
