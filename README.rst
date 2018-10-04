@@ -65,5 +65,16 @@ to identify Jira issue ids. If script does not find anything that looks like
 Jira id, it will skip that entry.
 
 
+TODO
+====
+
+- Pagination is not supported when reading existing worklogs from Jira.
+
+- Script does not handle situations when timelog or Jira worklog entries are
+  modified manualy. Script simply checks if existing Jira worklog entries does
+  not overlap if not, then worklog entries are created. If there is an overlap,
+  then entries are not created.
+
+
 .. _gtimelog: https://gtimelog.org/
 .. _Jira API: https://docs.atlassian.com/software/jira/docs/api/REST/7.12.0/
