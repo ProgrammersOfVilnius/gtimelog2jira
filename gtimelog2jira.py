@@ -345,4 +345,4 @@ def main(argv=None, stdout=sys.stdout):
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())
