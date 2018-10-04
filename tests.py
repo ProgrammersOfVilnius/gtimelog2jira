@@ -343,8 +343,8 @@ def test_dry_run(env):
         'ADD: FOO-64     2014-04-16T10:30+03:00      55m: initial work',
         '',
         'TOTALS:',
-        '    BAR-24:      28m (1)',
-        '    FOO-00:   1h  5m (1)',
-        '    FOO-42:   4h 56m (3)',
-        '    FOO-64:      55m (1)',
+        '    BAR-24:      28m (1), https://jira.example.com/browse/BAR-24',
+        '    FOO-00:   1h  5m (1), https://jira.example.com/browse/FOO-00',
+        '    FOO-42:   4h 56m (3), https://jira.example.com/browse/FOO-42',
+        '    FOO-64:      55m (1), https://jira.example.com/browse/FOO-64',
     ]
