@@ -9,6 +9,7 @@ import operator
 import pathlib
 import re
 import sys
+import urllib.parse
 
 import requests
 
@@ -286,7 +287,12 @@ def human_readable_time(r, cols=False):
     return ' '.join(reversed(result))
 
 
-def show_results(entries, stdout):
+def build_issue_url(jira_url, issue_number):
+    issue_endpoint = "/browse/{}".format(issue_number)
+    return urllib.parse.urljoin(jira_url, issue_endpoint)
+
+
+def show_results(entries, stdout, jira_url):
     totals = {
         'seconds': collections.defaultdict(int),
         'entries': collections.defaultdict(int),
@@ -318,7 +324,9 @@ def show_results(entries, stdout):
         print('TOTALS:', file=stdout)
         for issue, seconds in sorted(totals['seconds'].items()):
             entries = totals['entries'][issue]
-            print('%10s: %8s (%s)' % (issue, human_readable_time(seconds, cols=True), entries), file=stdout)
+            issue_url = build_issue_url(jira_url, issue)
+            time_spent = human_readable_time(seconds, cols=True)
+            print('%10s: %8s (%s), %s' % (issue, time_spent, entries, issue_url), file=stdout)
 
 
 def main(argv=None, stdout=sys.stdout):
@@ -345,7 +353,7 @@ def main(argv=None, stdout=sys.stdout):
         entries = sync_with_jira(config['session'], config['api'], entries, dry_run=args.dry_run,
                                  author_name=config['self']['name'])
         entries = log_jira_sync(entries, config['jiralog'])
-        show_results(entries, stdout)
+        show_results(entries, stdout, config['url'])
 
 
 if __name__ == '__main__':
