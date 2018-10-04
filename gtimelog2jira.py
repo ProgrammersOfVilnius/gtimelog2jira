@@ -12,6 +12,12 @@ import sys
 
 import requests
 
+try:
+    import keyring
+except ImportError:
+    keyring = None
+
+
 Entry = collections.namedtuple('Entry', ('start', 'end', 'message'))
 JiraWorkLog = collections.namedtuple('JiraWorkLog', ('id', 'start', 'end'))
 
@@ -80,22 +86,29 @@ def read_config(config_file):
 
     session = requests.Session()
 
+    if not password and keyring:
+        password = keyring.get_password(url, username)
+
     attempts = range(3)
     for attempt in attempts:
         if attempt > 0 or not password:
-            password = getpass.getpass('Enter Jira password for %s at url: ' % username)
+            password = getpass.getpass('Enter Jira password for %s at %s: ' % (username, url))
+            if keyring:
+                keyring.set_password(url, username, password)
 
         session.auth = (username, password)
         resp = session.get('%s/myself' % api)
         if resp.ok:
             break
         elif resp.status_code == 401:
+            if keyring:
+                keyring.delete_password(url, username)
             raise ConfigurationError("Error: Incorrect password or username.")
         elif resp.status_code == 403:
             raise ConfigurationError(
                 "Jira credentials seems to be correct, but this user does "
-                "not have permission to log in. Try to log in via browser, "
-                "maybe you need to answer a security quertion."
+                "not have permission to log in.\nTry to log in via browser, "
+                "maybe you need to answer a security question: %s" % url
             )
         else:
             raise ConfigurationError("Something went wrong, Jira gave %s status code." % resp.status_code)

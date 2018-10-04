@@ -60,7 +60,7 @@ file. Configuration file example:
 If password is not specified, script will prompt to enter password
 interactively.
 
-`projects` option should list all project siffixes. These suffixes will be used
+`projects` option should list all project prefixes. These prefixes will be used
 to identify Jira issue ids. If script does not find anything that looks like
 Jira id, it will skip that entry.
 
