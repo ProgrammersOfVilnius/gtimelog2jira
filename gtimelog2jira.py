@@ -137,8 +137,11 @@ def read_timelog(f, midnight='06:00', tz=None):
         if line == '':
             continue
 
-        time, note = line.split(': ', 1)
-        time = datetime.datetime.strptime(time, '%Y-%m-%d %H:%M').astimezone()
+        try:
+            time, note = line.split(': ', 1)
+            time = datetime.datetime.strptime(time, '%Y-%m-%d %H:%M').astimezone()
+        except ValueError:
+            continue
 
         if nextday is None or time >= nextday:
             if last is not None and entries == 0:
