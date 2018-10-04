@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import argparse
 import collections
 import configparser
@@ -325,3 +326,7 @@ def main(argv=None, stdout=sys.stdout):
         entries = sync_with_jira(config['session'], config['api'], entries, dry_run=args.dry_run)
         entries = log_jira_sync(entries, config['jiralog'])
         show_results(entries, stdout)
+
+
+if __name__ == '__main__':
+    main()
