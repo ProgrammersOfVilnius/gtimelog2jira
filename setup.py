@@ -1,4 +1,4 @@
-from setuptools import setup, find_packages
+from setuptools import setup
 
 
 setup(
@@ -6,7 +6,7 @@ setup(
     version='0.1',
     description="Script to create Jira worklog entries from Gtimelog journal.",
     license='GPL',
-    packages=find_packages(),
+    py_modules=['gtimelog2jira'],
     install_requires=[
         'requests',
     ],
