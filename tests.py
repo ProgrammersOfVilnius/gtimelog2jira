@@ -46,10 +46,7 @@ class JiraApi:
             self.mock.register_uri(method, route.pattern, json=route.handler)
 
         self.db = {
-            'user': {
-                'name': user,
-                'username': user.lower().replace(' ', '.') + '@example.com',
-            },
+            'user': user,
             'issues': {
                 'BAR-24': {'issueId': next(self.idseq), 'worklog': {}},
                 'FOO-42': {'issueId': next(self.idseq), 'worklog': {}},
@@ -57,19 +54,39 @@ class JiraApi:
             },
         }
 
+        self._add_worklog('Someone Else', 'FOO-64', datetime.datetime(2014, 4, 16, 11, 0).astimezone(), 300,
+                          'did some work')
+
     def _get_url_params(self, request, name):
         return self.routes[name].pattern.search(request.url).groups()
 
-    def _get_user(self):
+    def _get_user(self, name=None):
+        name = name or self.db['user']
+        username = name.lower().replace(' ', '.') + '@example.com'
         return {
             'active': True,
-            'displayName': self.db['user']['name'],
-            'emailAddress': self.db['user']['username'],
-            'key': self.db['user']['username'],
-            'name': self.db['user']['username'],
-            'self': self.url + self.base + '/user?username' + self.db['user']['username'],
+            'displayName': name,
+            'emailAddress': username,
+            'key': username,
+            'name': username,
+            'self': self.url + self.base + '/user?username' + username,
             'timeZone': 'Europe/Helsinki',
         }
+
+    def _add_worklog(self, user, issue, started, seconds, comment):
+        now = datetime.datetime.now()
+        worklog_id = next(self.idseq)
+        self.db['issues'][issue]['worklog'][worklog_id] = {
+            'id': worklog_id,
+            'author': self._get_user(user),
+            'comment': comment,
+            'started': started if isinstance(started, str) else started.strftime(self.dtformat),
+            'timeSpent': gtimelog2jira.human_readable_time(seconds),
+            'timeSpentSeconds': seconds,
+            'created': now.strftime(self.dtformat),
+            'updated': now.strftime(self.dtformat),
+        }
+        return worklog_id
 
     def myself(self, request, context):
         context.headers['content-type'] = 'application/json'
@@ -92,20 +109,11 @@ class JiraApi:
 
         else:
             total = len(self.db['issues'][issue]['worklog'])
-
             return {
                 'maxResults': total,
                 'startAt': 0,
                 'total': total,
-                'worklogs': [
-                    {
-                        'author': self._get_user(),
-                        'updateAuthor': self._get_user(),
-                        'id': worklog_id,
-                        **worklog,
-                    }
-                    for worklog_id, worklog in self.db['issues'][issue]['worklog'].items()
-                ],
+                'worklogs': [worklog for worklog in self.db['issues'][issue]['worklog'].values()],
             }
 
     def create_worklog(self, request, context):
@@ -121,31 +129,22 @@ class JiraApi:
 
         else:
             context.status_code = 201
-            now = datetime.datetime.now()
-            worklog_id = next(self.idseq)
-            worklog = request.json()
-            self.db['issues'][issue]['worklog'][worklog_id] = {
-                'comment': worklog['comment'],
-                'started': worklog['started'],
-                'timeSpentSeconds': worklog['timeSpentSeconds'],
-                'created': now.strftime(self.dtformat),
-                'updated': now.strftime(self.dtformat),
-            }
-
-            author = self._get_user()
-
+            data = request.json()
+            worklog_id = self._add_worklog(self.db['user'], issue, data['started'], data['timeSpentSeconds'],
+                                           data['comment'])
+            worklog = self.db['issues'][issue]['worklog'][worklog_id]
             return {
-                'author': author,
-                'comment': self.db['issues'][issue]['worklog'][worklog_id]['comment'],
-                'created': self.db['issues'][issue]['worklog'][worklog_id]['created'],
+                'author': worklog['author'],
+                'comment': worklog['comment'],
+                'created': worklog['created'],
                 'id': worklog_id,
                 'issueId': self.db['issues'][issue]['issueId'],
                 'self': self.url + self.base + '/issue/' + self.db['issues'][issue]['issueId'] + '/worklog/' + worklog_id,
-                'started': self.db['issues'][issue]['worklog'][worklog_id]['started'],
-                'timeSpent': '3h 20m',
-                'timeSpentSeconds': self.db['issues'][issue]['worklog'][worklog_id]['timeSpentSeconds'],
-                'updateAuthor': author,
-                'updated': self.db['issues'][issue]['worklog'][worklog_id]['created'],
+                'started': worklog['started'],
+                'timeSpent': worklog['timeSpent'],
+                'timeSpentSeconds': worklog['timeSpentSeconds'],
+                'updateAuthor': worklog['author'],
+                'updated': worklog['created'],
             }
 
 
@@ -206,10 +205,12 @@ class Env:
         return gtimelog2jira.main(argv, self.stdout)
 
     def get_worklog(self):
+        user = self.jira._get_user()
         return [
             (worklog['started'], worklog['timeSpentSeconds'], issue_id, worklog['comment'])
             for issue_id, issue in self.jira.db['issues'].items()
             for worklog_id, worklog in issue['worklog'].items()
+            if worklog['author']['name'] == user['name']
         ]
 
     def get_jiralog(self):
@@ -242,10 +243,10 @@ def test_no_args(env, mocker):
     ]
     assert env.get_jiralog() == [
         ('2014-04-16T11:25+03:00', '3900', 'FOO-00', '', 'error', 'Issue FOO-00 Does Not Exist'),
-        ('2014-04-16T10:30+03:00', '3300', 'FOO-64', '4', 'add', 'initial work'),
+        ('2014-04-16T10:30+03:00', '3300', 'FOO-64', '5', 'add', 'initial work'),
         ('2014-04-16T11:25+03:00', '3900', 'FOO-00', '', 'error', 'Issue FOO-00 Does Not Exist'),
-        ('2014-04-16T10:30+03:00', '3300', 'FOO-64', '4', 'overlap', 'initial work'),
-        ('2014-04-17T10:30+03:00', '3300', 'FOO-64', '5', 'add', 'do more work'),
+        ('2014-04-16T10:30+03:00', '3300', 'FOO-64', '5', 'overlap', 'initial work'),
+        ('2014-04-17T10:30+03:00', '3300', 'FOO-64', '6', 'add', 'do more work'),
     ]
 
 
@@ -266,19 +267,19 @@ def test_full_sync(env):
         ('2014-04-17T10:30:00.000+0300', 3300, 'FOO-64', 'do more work'),
     ]
     assert env.get_jiralog() == [
-        ('2014-03-31T17:10+03:00', '1680', 'BAR-24', '4', 'add', 'some work'),
+        ('2014-03-31T17:10+03:00', '1680', 'BAR-24', '5', 'add', 'some work'),
         ('2014-04-16T11:25+03:00', '3900', 'FOO-00', '', 'error', 'Issue FOO-00 Does Not Exist'),
-        ('2014-03-31T17:38+03:00', '4380', 'FOO-42', '5', 'add', 'some more work'),
-        ('2014-04-01T13:54+03:00', '6420', 'FOO-42', '6', 'add', 'some work'),
-        ('2014-04-01T16:04+03:00', '6960', 'FOO-42', '7', 'add', 'some more work'),
-        ('2014-04-16T10:30+03:00', '3300', 'FOO-64', '8', 'add', 'initial work'),
-        ('2014-03-31T17:10+03:00', '1680', 'BAR-24', '4', 'overlap', 'some work'),
+        ('2014-03-31T17:38+03:00', '4380', 'FOO-42', '6', 'add', 'some more work'),
+        ('2014-04-01T13:54+03:00', '6420', 'FOO-42', '7', 'add', 'some work'),
+        ('2014-04-01T16:04+03:00', '6960', 'FOO-42', '8', 'add', 'some more work'),
+        ('2014-04-16T10:30+03:00', '3300', 'FOO-64', '9', 'add', 'initial work'),
+        ('2014-03-31T17:10+03:00', '1680', 'BAR-24', '5', 'overlap', 'some work'),
         ('2014-04-16T11:25+03:00', '3900', 'FOO-00', '', 'error', 'Issue FOO-00 Does Not Exist'),
-        ('2014-03-31T17:38+03:00', '4380', 'FOO-42', '5', 'overlap', 'some more work'),
-        ('2014-04-01T13:54+03:00', '6420', 'FOO-42', '6', 'overlap', 'some work'),
-        ('2014-04-01T16:04+03:00', '6960', 'FOO-42', '7', 'overlap', 'some more work'),
-        ('2014-04-16T10:30+03:00', '3300', 'FOO-64', '8', 'overlap', 'initial work'),
-        ('2014-04-17T10:30+03:00', '3300', 'FOO-64', '9', 'add', 'do more work'),
+        ('2014-03-31T17:38+03:00', '4380', 'FOO-42', '6', 'overlap', 'some more work'),
+        ('2014-04-01T13:54+03:00', '6420', 'FOO-42', '7', 'overlap', 'some work'),
+        ('2014-04-01T16:04+03:00', '6960', 'FOO-42', '8', 'overlap', 'some more work'),
+        ('2014-04-16T10:30+03:00', '3300', 'FOO-64', '9', 'overlap', 'initial work'),
+        ('2014-04-17T10:30+03:00', '3300', 'FOO-64', '10', 'add', 'do more work'),
     ]
 
 
@@ -298,13 +299,13 @@ def test_single_issue(env):
         ('2014-04-17T10:30:00.000+0300', 3300, 'FOO-42', 'do more work'),
     ]
     assert env.get_jiralog() == [
-        ('2014-03-31T17:38+03:00', '4380', 'FOO-42', '4', 'add', 'some more work'),
-        ('2014-04-01T13:54+03:00', '6420', 'FOO-42', '5', 'add', 'some work'),
-        ('2014-04-01T16:04+03:00', '6960', 'FOO-42', '6', 'add', 'some more work'),
-        ('2014-03-31T17:38+03:00', '4380', 'FOO-42', '4', 'overlap', 'some more work'),
-        ('2014-04-01T13:54+03:00', '6420', 'FOO-42', '5', 'overlap', 'some work'),
-        ('2014-04-01T16:04+03:00', '6960', 'FOO-42', '6', 'overlap', 'some more work'),
-        ('2014-04-17T10:30+03:00', '3300', 'FOO-42', '7', 'add', 'do more work'),
+        ('2014-03-31T17:38+03:00', '4380', 'FOO-42', '5', 'add', 'some more work'),
+        ('2014-04-01T13:54+03:00', '6420', 'FOO-42', '6', 'add', 'some work'),
+        ('2014-04-01T16:04+03:00', '6960', 'FOO-42', '7', 'add', 'some more work'),
+        ('2014-03-31T17:38+03:00', '4380', 'FOO-42', '5', 'overlap', 'some more work'),
+        ('2014-04-01T13:54+03:00', '6420', 'FOO-42', '6', 'overlap', 'some work'),
+        ('2014-04-01T16:04+03:00', '6960', 'FOO-42', '7', 'overlap', 'some more work'),
+        ('2014-04-17T10:30+03:00', '3300', 'FOO-42', '8', 'add', 'do more work'),
     ]
 
 
@@ -316,9 +317,9 @@ def test_since_date(env):
     ]
     assert env.get_jiralog() == [
         ('2014-04-16T11:25+03:00', '3900', 'FOO-00', '', 'error', 'Issue FOO-00 Does Not Exist'),
-        ('2014-04-16T10:30+03:00', '3300', 'FOO-64', '4', 'add', 'initial work'),
+        ('2014-04-16T10:30+03:00', '3300', 'FOO-64', '5', 'add', 'initial work'),
         ('2014-04-16T11:25+03:00', '3900', 'FOO-00', '', 'error', 'Issue FOO-00 Does Not Exist'),
-        ('2014-04-16T10:30+03:00', '3300', 'FOO-64', '4', 'overlap', 'initial work'),
+        ('2014-04-16T10:30+03:00', '3300', 'FOO-64', '5', 'overlap', 'initial work'),
     ]
 
 
