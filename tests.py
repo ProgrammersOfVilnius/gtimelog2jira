@@ -23,9 +23,16 @@ def test_parse_timelog():
         gtimelog2jira.Entry(datetime.datetime(2014, 3, 31, 18, 48),
                             datetime.datetime(2014, 3, 31, 19, 10),
                             'project2: not working on ABC-1 actually **'),
+        gtimelog2jira.Entry(datetime.datetime(2014, 3, 31, 19, 48),
+                            datetime.datetime(2014, 3, 31, 20, 10),
+                            'project2: meeting prep (ABC-MISC)'),
     ]
-    assert list(gtimelog2jira.parse_timelog(entries, ['ABC'], {})) == [
+    aliases = {
+        'ABC-MISC': 'ABC-42',
+    }
+    assert list(gtimelog2jira.parse_timelog(entries, ['ABC'], aliases)) == [
         gtimelog2jira.WorkLog(entries[0], 'ABC-1', 'ABC-1 some work'),
+        gtimelog2jira.WorkLog(entries[-1], 'ABC-42', 'meeting prep (ABC-MISC)'),
     ]
 
 
