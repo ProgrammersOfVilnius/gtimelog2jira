@@ -57,6 +57,10 @@ file. Configuration file example:
     BAR
     BAZ
 
+  [gtimelog2jira:aliases]
+  # catch-all issue for all billed work not attributable to a specific ticket
+  FOO-MISC = FOO-1234
+
 If password is not specified, script will prompt to enter password
 interactively.
 
