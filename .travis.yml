@@ -1,7 +1,5 @@
 sudo: false
 language: "python"
-env:
-  - "TZ=Europe/Vilnius"
 python:
   - "3.6"
   # - "3.7" Travis does not support 3.7 yet.
