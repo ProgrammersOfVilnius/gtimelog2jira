@@ -4,11 +4,15 @@ import io
 import itertools
 import pathlib
 import re
+import os
 
 import pytest
 import requests_mock
 
 import gtimelog2jira
+
+
+os.environ['TZ'] = 'Europe/Vilnius'
 
 
 class Route:
