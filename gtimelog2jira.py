@@ -288,8 +288,7 @@ def human_readable_time(r, cols=False):
 
 
 def build_issue_url(jira_url, issue_number):
-    issue_endpoint = "/browse/{}".format(issue_number)
-    return urllib.parse.urljoin(jira_url, issue_endpoint)
+    return urllib.parse.urljoin(jira_url, 'browse/' + issue_number)
 
 
 def show_results(entries, stdout, jira_url):
