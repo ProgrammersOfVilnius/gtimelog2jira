@@ -12,9 +12,6 @@ import requests_mock
 import gtimelog2jira
 
 
-os.environ['TZ'] = 'Europe/Vilnius'
-
-
 class Route:
 
     def __init__(self, handler, params=None):
