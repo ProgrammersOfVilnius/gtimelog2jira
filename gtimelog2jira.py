@@ -205,7 +205,7 @@ def parse_timelog(entries, projects, aliases):
         if comment.startswith(issue):
             comment = comment[len(issue):].strip()
         if comment.endswith(issue):
-            comment = comment[:len(issue)].strip()
+            comment = comment[:-len(issue)].strip()
 
         yield WorkLog(entry, issue, comment)
 
