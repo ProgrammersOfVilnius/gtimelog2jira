@@ -375,7 +375,8 @@ def main(argv=None, stdout=sys.stdout):
     with config['timelog'].open() as f:
         entries = read_timelog(f)
         entries = parse_timelog(entries, config['projects'], config['aliases'])
-        entries = filter_timelog(entries, since=args.since, until=args.until, issue=args.issue)
+        entries = filter_timelog(entries, since=args.since, until=args.until,
+                                 issue=config['aliases'].get(args.issue, args.issue))
         entries = sync_with_jira(config['session'], config['api'], entries, dry_run=args.dry_run,
                                  author_name=config['self']['name'])
         entries = log_jira_sync(entries, config['jiralog'])
