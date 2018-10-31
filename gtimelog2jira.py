@@ -253,7 +253,12 @@ def sync_with_jira(session, api_url, entries: Iterable[WorkLog], dry_run=False, 
             if overlap:
                 full_overlap = [x.id for x in overlap if x.start == entry.start and x.end == entry.end]
                 partial_overlap = [x.id for x in overlap if x.start != entry.start or x.end != entry.end]
-                yield JiraSyncStatus(entry, {'full': ';'.join(full_overlap), 'partial': ';'.join(partial_overlap)}, 'overlap')
+                resp = {
+                    'id': ';'.join(full_overlap + partial_overlap),
+                    'full': ';'.join(full_overlap),
+                    'partial': ';'.join(partial_overlap),
+                }
+                yield JiraSyncStatus(entry, resp, 'overlap')
             elif dry_run:
                 yield JiraSyncStatus(entry, {}, 'add (dry run)')
             else:
