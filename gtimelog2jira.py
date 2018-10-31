@@ -203,7 +203,7 @@ def parse_timelog(entries: Iterable[Entry], projects: Iterable[str], aliases: Di
         issue = aliases.get(issue, issue)
 
         # Clean up comment from categories and from issue id.
-        comment = entry.message.rsplit(':', 1)[1].strip()
+        comment = entry.message.rsplit(':', 1)[-1].strip()
         if comment.startswith(issue):
             comment = comment[len(issue):].strip()
         if comment.endswith(issue):
