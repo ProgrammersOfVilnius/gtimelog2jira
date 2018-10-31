@@ -10,6 +10,7 @@ import pathlib
 import re
 import sys
 import urllib.parse
+from typing import Iterable, Dict
 
 import requests
 
@@ -21,11 +22,12 @@ except ImportError:
 
 Entry = collections.namedtuple('Entry', ('start', 'end', 'message'))
 JiraWorkLog = collections.namedtuple('JiraWorkLog', ('id', 'start', 'end'))
+JiraSyncStatus = collections.namedtuple('JiraSyncStatus', ('entry', 'json', 'action'))
 
 
 class WorkLog:
 
-    def __init__(self, entry: Entry, issue, comment):
+    def __init__(self, entry: Entry, issue: str, comment: str) -> None:
         self.entry = entry
         self.start = entry.start
         self.end = entry.end
@@ -46,7 +48,7 @@ class ConfigurationError(Exception):
     pass
 
 
-def read_config(config_file):
+def read_config(config_file: pathlib.Path) -> dict:
     if not config_file.exists():
         raise ConfigurationError("Configuration file %s does not exist." % config_file)
 
@@ -140,7 +142,7 @@ def read_config(config_file):
     }
 
 
-def read_timelog(f, midnight='06:00', tz=None):
+def read_timelog(f: Iterable[str], midnight='06:00', tz=None) -> Iterable[Entry]:
     last = None
     nextday = None
     hour, minute = map(int, midnight.split(':'))
@@ -180,7 +182,7 @@ def read_timelog(f, midnight='06:00', tz=None):
         yield Entry(last, last, last_note)
 
 
-def parse_timelog(entries, projects, aliases):
+def parse_timelog(entries: Iterable[Entry], projects: Iterable[str], aliases: Dict[str, str]) -> Iterable[WorkLog]:
     issue_re = re.compile(r'\b(?:%s)' % '|'.join(
         [r'(?:%s)-\d+' % '|'.join(projects)] + list(aliases)
     ))
@@ -214,7 +216,7 @@ def get_now():
     return datetime.datetime.now().astimezone()
 
 
-def filter_timelog(entries, *, since=None, until=None, issue=None):
+def filter_timelog(entries: Iterable[WorkLog], *, since=None, until=None, issue=None) -> Iterable[WorkLog]:
     if since is None and issue is None:
         since = get_now() - datetime.timedelta(days=7)
 
@@ -228,7 +230,7 @@ def filter_timelog(entries, *, since=None, until=None, issue=None):
         yield entry
 
 
-def get_jira_worklog(session, api_url, issue, author_name=None):
+def get_jira_worklog(session, api_url, issue, author_name=None) -> Iterable[JiraWorkLog]:
     resp = session.get(api_url + '/issue/' + issue + '/worklog')
     for worklog in resp.json().get('worklogs', []):
         if author_name and worklog['author']['name'] != author_name:
@@ -238,7 +240,7 @@ def get_jira_worklog(session, api_url, issue, author_name=None):
         yield JiraWorkLog(worklog['id'], started, ended)
 
 
-def sync_with_jira(session, api_url, entries, dry_run=False, author_name=None):
+def sync_with_jira(session, api_url, entries: Iterable[WorkLog], dry_run=False, author_name=None) -> Iterable[JiraSyncStatus]:
     sort_key = operator.attrgetter('issue')
     entries = sorted(entries, key=sort_key)
     for issue, entries in itertools.groupby(entries, key=sort_key):
@@ -246,9 +248,9 @@ def sync_with_jira(session, api_url, entries, dry_run=False, author_name=None):
         for entry in entries:
             overlap = [x.id for x in worklog if x.start >= entry.start and x.end <= entry.end]
             if overlap:
-                yield entry, {'id': ';'.join(overlap)}, 'overlap'
+                yield JiraSyncStatus(entry, {'id': ';'.join(overlap)}, 'overlap')
             elif dry_run:
-                yield entry, {}, 'add (dry run)'
+                yield JiraSyncStatus(entry, {}, 'add (dry run)')
             else:
                 resp = session.post(api_url + '/issue/' + issue + '/worklog', json={
                     'started': entry.start.strftime('%Y-%m-%dT%H:%M:%S.000%z'),
@@ -256,12 +258,12 @@ def sync_with_jira(session, api_url, entries, dry_run=False, author_name=None):
                     'comment': entry.comment,
                 })
                 if resp.status_code >= 400:
-                    yield entry, resp.json(), 'error'
+                    yield JiraSyncStatus(entry, resp.json(), 'error')
                 else:
-                    yield entry, resp.json(), 'add'
+                    yield JiraSyncStatus(entry, resp.json(), 'add')
 
 
-def log_jira_sync(entries, jiralog):
+def log_jira_sync(entries: Iterable[JiraSyncStatus], jiralog) -> Iterable[JiraSyncStatus]:
     with jiralog.open('a') as f:
         for entry, resp, action in entries:
             if action == 'error':
@@ -278,7 +280,7 @@ def log_jira_sync(entries, jiralog):
                 comment,
             ])) + '\n')
 
-            yield entry, resp, action
+            yield JiraSyncStatus(entry, resp, action)
 
 
 class Date:
@@ -296,7 +298,7 @@ class Date:
         return datetime.datetime.strptime(value, self.fmt).astimezone()
 
 
-def human_readable_time(r, cols=False):
+def human_readable_time(r: float, cols=False) -> str:
     fmt = '%2s%s' if cols else '%s%s'
     periods = [
         (60, 's'),
@@ -316,7 +318,7 @@ def build_issue_url(jira_url, issue_number):
     return urllib.parse.urljoin(jira_url, 'browse/' + issue_number)
 
 
-def show_results(entries, stdout, jira_url):
+def show_results(entries: Iterable[JiraSyncStatus], stdout, jira_url):
     totals = {
         'seconds': collections.defaultdict(int),
         'entries': collections.defaultdict(int),
