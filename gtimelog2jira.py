@@ -246,9 +246,11 @@ def sync_with_jira(session, api_url, entries: Iterable[WorkLog], dry_run=False, 
     for issue, entries in itertools.groupby(entries, key=sort_key):
         worklog = list(get_jira_worklog(session, api_url, issue, author_name))
         for entry in entries:
-            overlap = [x.id for x in worklog if x.start >= entry.start and x.end <= entry.end]
+            overlap = [x for x in worklog if x.start >= entry.start and x.end <= entry.end]
             if overlap:
-                yield JiraSyncStatus(entry, {'id': ';'.join(overlap)}, 'overlap')
+                full_overlap = [x.id for x in overlap if x.start == entry.start and x.end == entry.end]
+                partial_overlap = [x.id for x in overlap if x.start != entry.start or x.end != entry.end]
+                yield JiraSyncStatus(entry, {'full': ';'.join(full_overlap), 'partial': ';'.join(partial_overlap)}, 'overlap')
             elif dry_run:
                 yield JiraSyncStatus(entry, {}, 'add (dry run)')
             else:
@@ -318,7 +320,7 @@ def build_issue_url(jira_url, issue_number):
     return urllib.parse.urljoin(jira_url, 'browse/' + issue_number)
 
 
-def show_results(entries: Iterable[JiraSyncStatus], stdout, jira_url):
+def show_results(entries: Iterable[JiraSyncStatus], stdout, jira_url, verbose=0):
     totals = {
         'seconds': collections.defaultdict(int),
         'entries': collections.defaultdict(int),
@@ -344,6 +346,17 @@ def show_results(entries: Iterable[JiraSyncStatus], stdout, jira_url):
                 amount=human_readable_time(entry.seconds, cols=True),
                 comment='; '.join(resp.get('errorMessages', [])),
             ), file=stdout)
+        elif action == 'overlap' and verbose >= 1:
+            print('OVR: {issue:<10} {start} {amount:>8}: {comment}'.format(
+                issue=entry.issue,
+                start=entry.start.isoformat(timespec='minutes'),
+                amount=human_readable_time(entry.seconds, cols=True),
+                comment=entry.comment,
+            ), file=stdout)
+            if resp['full'] and verbose >= 2:
+                print('     full overlap with {}'.format(resp['full']), file=stdout)
+            if resp['partial'] and verbose >= 2:
+                print('     partial overlap with {}'.format(resp['partial']), file=stdout)
 
     if totals['seconds']:
         print(file=stdout)
@@ -358,6 +371,8 @@ def show_results(entries: Iterable[JiraSyncStatus], stdout, jira_url):
 def main(argv=None, stdout=sys.stdout):
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', '--config', default='~/.gtimelog/gtimelogrc')
+    parser.add_argument('-v', '--verbose', action='count', default=0,
+                        help='be more verbose (can be repeated)')
     parser.add_argument('--dry-run', action='store_true', default=False,
                         help="don't sync anything, just show what would be done")
     parser.add_argument('--since', type=Date(), help="sync logs from specfied yyyy-mm-dd date")
@@ -380,7 +395,7 @@ def main(argv=None, stdout=sys.stdout):
         entries = sync_with_jira(config['session'], config['api'], entries, dry_run=args.dry_run,
                                  author_name=config['self']['name'])
         entries = log_jira_sync(entries, config['jiralog'])
-        show_results(entries, stdout, config['url'])
+        show_results(entries, stdout, config['url'], verbose=args.verbose)
 
 
 if __name__ == '__main__':
