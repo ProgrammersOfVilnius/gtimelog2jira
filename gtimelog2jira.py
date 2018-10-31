@@ -329,6 +329,8 @@ def show_results(entries: Iterable[JiraSyncStatus], stdout, jira_url, verbose=0)
         'entries': collections.defaultdict(int),
         'overlap_seconds': collections.defaultdict(int),
         'overlap_entries': collections.defaultdict(int),
+        'partial_overlap_seconds': collections.defaultdict(int),
+        'partial_overlap_entries': collections.defaultdict(int),
     }
 
     print(file=stdout)
@@ -351,19 +353,23 @@ def show_results(entries: Iterable[JiraSyncStatus], stdout, jira_url, verbose=0)
                 amount=human_readable_time(entry.seconds, cols=True),
                 comment='; '.join(resp.get('errorMessages', [])),
             ), file=stdout)
-        elif action == 'overlap' and verbose >= 1:
-            print('OVR: {issue:<10} {start} {amount:>8}: {comment}'.format(
-                issue=entry.issue,
-                start=entry.start.isoformat(timespec='minutes'),
-                amount=human_readable_time(entry.seconds, cols=True),
-                comment=entry.comment,
-            ), file=stdout)
+        elif action == 'overlap':
+            if verbose >= 1:
+                print('OVR: {issue:<10} {start} {amount:>8}: {comment}'.format(
+                    issue=entry.issue,
+                    start=entry.start.isoformat(timespec='minutes'),
+                    amount=human_readable_time(entry.seconds, cols=True),
+                    comment=entry.comment,
+                ), file=stdout)
             if resp['full'] and verbose >= 2:
                 print('     full overlap with {}'.format(resp['full']), file=stdout)
             if resp['partial'] and verbose >= 2:
                 print('     partial overlap with {}'.format(resp['partial']), file=stdout)
             totals['overlap_seconds'][entry.issue] += entry.seconds
             totals['overlap_entries'][entry.issue] += 1
+            if resp['partial']:
+                totals['partial_overlap_seconds'][entry.issue] += entry.seconds
+                totals['partial_overlap_entries'][entry.issue] += 1
 
     if totals['seconds']:
         print(file=stdout)
@@ -373,11 +379,19 @@ def show_results(entries: Iterable[JiraSyncStatus], stdout, jira_url, verbose=0)
             issue_url = build_issue_url(jira_url, issue)
             time_spent = human_readable_time(seconds, cols=True)
             print('%10s: %8s (%s), %s' % (issue, time_spent, entries, issue_url), file=stdout)
-    if totals['overlap_seconds']:
+    if totals['overlap_seconds'] and verbose >= 1:
         print(file=stdout)
         print('TOTAL OVERLAP:', file=stdout)
         for issue, seconds in sorted(totals['overlap_seconds'].items()):
             entries = totals['overlap_entries'][issue]
+            issue_url = build_issue_url(jira_url, issue)
+            time_spent = human_readable_time(seconds, cols=True)
+            print('%10s: %8s (%s), %s' % (issue, time_spent, entries, issue_url), file=stdout)
+    if totals['partial_overlap_seconds']:
+        print(file=stdout)
+        print('WARNING!  Some entries had partial overlap with existing entries and were skipped:', file=stdout)
+        for issue, seconds in sorted(totals['partial_overlap_seconds'].items()):
+            entries = totals['partial_overlap_entries'][issue]
             issue_url = build_issue_url(jira_url, issue)
             time_spent = human_readable_time(seconds, cols=True)
             print('%10s: %8s (%s), %s' % (issue, time_spent, entries, issue_url), file=stdout)
