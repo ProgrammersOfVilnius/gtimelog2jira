@@ -20,6 +20,9 @@ except ImportError:
     keyring = None
 
 
+assert sys.version_info >= (3, 6), "You need Python 3.6 or newer"
+
+
 Entry = collections.namedtuple('Entry', ('start', 'end', 'message'))
 JiraWorkLog = collections.namedtuple('JiraWorkLog', ('id', 'start', 'end'))
 JiraSyncStatus = collections.namedtuple('JiraSyncStatus', ('entry', 'json', 'action'))
