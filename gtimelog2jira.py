@@ -324,6 +324,8 @@ def show_results(entries: Iterable[JiraSyncStatus], stdout, jira_url, verbose=0)
     totals = {
         'seconds': collections.defaultdict(int),
         'entries': collections.defaultdict(int),
+        'overlap_seconds': collections.defaultdict(int),
+        'overlap_entries': collections.defaultdict(int),
     }
 
     print(file=stdout)
@@ -357,12 +359,22 @@ def show_results(entries: Iterable[JiraSyncStatus], stdout, jira_url, verbose=0)
                 print('     full overlap with {}'.format(resp['full']), file=stdout)
             if resp['partial'] and verbose >= 2:
                 print('     partial overlap with {}'.format(resp['partial']), file=stdout)
+            totals['overlap_seconds'][entry.issue] += entry.seconds
+            totals['overlap_entries'][entry.issue] += 1
 
     if totals['seconds']:
         print(file=stdout)
         print('TOTALS:', file=stdout)
         for issue, seconds in sorted(totals['seconds'].items()):
             entries = totals['entries'][issue]
+            issue_url = build_issue_url(jira_url, issue)
+            time_spent = human_readable_time(seconds, cols=True)
+            print('%10s: %8s (%s), %s' % (issue, time_spent, entries, issue_url), file=stdout)
+    if totals['overlap_seconds']:
+        print(file=stdout)
+        print('TOTAL OVERLAP:', file=stdout)
+        for issue, seconds in sorted(totals['overlap_seconds'].items()):
+            entries = totals['overlap_entries'][issue]
             issue_url = build_issue_url(jira_url, issue)
             time_spent = human_readable_time(seconds, cols=True)
             print('%10s: %8s (%s), %s' % (issue, time_spent, entries, issue_url), file=stdout)
