@@ -392,6 +392,11 @@ def main(argv=None, stdout=sys.stdout):
     parser.add_argument('--issue', help="sync only specified issue number")
     args = parser.parse_args(argv)
 
+    if args.since and args.until and args.since >= args.until:
+        parser.error(
+            'the time interval is empty ({args.since} .. {args.until})'.format(
+                args=args))
+
     config_file = pathlib.Path(args.config).expanduser().resolve()
     try:
         config = read_config(config_file)
