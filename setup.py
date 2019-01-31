@@ -10,6 +10,11 @@ setup(
     install_requires=[
         'requests',
     ],
+    extras_require={
+        'keyring': [
+            'keyring',
+        ],
+    },
     entry_points={
         'console_scripts': [
             'gtimelog2jira=gtimelog2jira:main',
