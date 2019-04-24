@@ -105,14 +105,19 @@ def read_config(config_file: pathlib.Path) -> dict:
 
     session = requests.Session()
 
-    if not password and keyring:
-        password = keyring.get_password(url, username)
+    if not password:
+        if keyring:
+            password = keyring.get_password(url, username)
+        else:
+            print("'keyring' module not available: you'll have to enter the password on every run.")
+            print("To avoid that, 'pip install keyring'.")
 
     attempts = range(3)
     for attempt in attempts:
         if attempt > 0 or not password:
             password = getpass.getpass('Enter Jira password for %s at %s: ' % (username, url))
             if keyring:
+                print("Saving the password in the system keyring.")
                 keyring.set_password(url, username, password)
 
         session.auth = (username, password)
