@@ -407,7 +407,7 @@ def show_results(entries: Iterable[JiraSyncStatus], stdout, jira_url, verbose=0)
             print('%10s: %8s (%s), %s' % (issue, time_spent, entries, issue_url), file=stdout)
 
 
-def main(argv=None, stdout=sys.stdout):
+def _main(argv=None, stdout=sys.stdout):
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', '--config', default='~/.gtimelog/gtimelogrc')
     parser.add_argument('-v', '--verbose', action='count', default=0,
@@ -440,6 +440,13 @@ def main(argv=None, stdout=sys.stdout):
                                  author_name=config['self']['name'])
         entries = log_jira_sync(entries, config['jiralog'])
         show_results(entries, stdout, config['url'], verbose=args.verbose)
+
+
+def main(argv=None, stdout=sys.stdout):
+    try:
+        _main(argv=argv, stdout=sys.stdout)
+    except KeyboardInterrupt:
+        sys.exit("Interrupted!")
 
 
 if __name__ == '__main__':
