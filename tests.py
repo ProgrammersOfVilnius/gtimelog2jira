@@ -374,3 +374,23 @@ def test_dry_run(env):
         '    FOO-42:   4h 56m (3), https://jira.example.com/browse/FOO-42',
         '    FOO-64:      55m (1), https://jira.example.com/browse/FOO-64',
     ]
+
+
+def test_parse_timelog_alias_clash():
+    entries = [
+        gtimelog2jira.Entry(datetime.datetime(2014, 3, 31, 14, 48),
+                            datetime.datetime(2014, 3, 31, 17, 10),
+                            'project2: meeting about something (MEET-SPLAT)'),
+    ]
+    projects = ['SSPACE', 'SPLAT']
+    aliases = {
+        'MEET': 'SSPACE-192',
+        'MEET-SPLAT': 'SPLAT-9',
+    }
+
+    wl_parsed = list(gtimelog2jira.parse_timelog(entries, projects, aliases))[0]
+    wl_test = gtimelog2jira.WorkLog(entries[0], 'SPLAT-9', 'meeting about something')
+
+    assert wl_parsed == wl_test
+    assert wl_parsed.issue == wl_test.issue
+    assert wl_parsed.comment == wl_test.comment
