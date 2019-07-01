@@ -191,8 +191,11 @@ def read_timelog(f: Iterable[str], midnight='06:00', tz=None) -> Iterable[Entry]
 
 
 def parse_timelog(entries: Iterable[Entry], projects: Iterable[str], aliases: Dict[str, str]) -> Iterable[WorkLog]:
-    issue_re = re.compile(r'\b(?:%s)' % '|'.join(
-        [r'(?:%s)-\d+' % '|'.join(projects)] + list(aliases)
+    # Python's | operator prefers the leftmost branch instead of the longest possible match.
+    # This is documented in https://docs.python.org/3/library/re.html#regular-expression-syntax
+    sorted_aliases = sorted(aliases, key=len, reverse=True)
+    issue_re = re.compile(r'\b(?:%s)\b' % '|'.join(
+        [r'(?:%s)-\d+' % '|'.join(projects)] + sorted_aliases
     ))
 
     for entry in entries:
