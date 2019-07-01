@@ -31,8 +31,24 @@ def test_parse_timelog():
         'ABC-MISC': 'ABC-42',
     }
     assert list(gtimelog2jira.parse_timelog(entries, ['ABC'], aliases)) == [
-        gtimelog2jira.WorkLog(entries[0], 'ABC-1', 'ABC-1 some work'),
+        gtimelog2jira.WorkLog(entries[0], 'ABC-1', 'some work'),
         gtimelog2jira.WorkLog(entries[-1], 'ABC-42', 'meeting prep (ABC-MISC)'),
+    ]
+
+
+def test_parse_timelog_alias_clash():
+    entries = [
+        gtimelog2jira.Entry(datetime.datetime(2014, 3, 31, 14, 48),
+                            datetime.datetime(2014, 3, 31, 17, 10),
+                            'project2: meeting about something (SPLAT-MEET)'),
+    ]
+    projects = ['SSPACE', 'SPLAT']
+    aliases = {
+        'MEET': 'SSPACE-192',
+        'SPLAT-MEET': 'SPLAT-9',
+    }
+    assert list(gtimelog2jira.parse_timelog(entries, projects, aliases)) == [
+        gtimelog2jira.WorkLog(entries[0], 'SPLAT-9', 'meeting about something (SPLAT-MEET)'),
     ]
 
 

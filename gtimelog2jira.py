@@ -44,7 +44,7 @@ class WorkLog:
     def __eq__(self, other):
         if not isinstance(other, WorkLog):
             return NotImplemented
-        return self.entry == other.entry
+        return (self.entry, self.issue, self.comment) == (other.entry, other.issue, other.comment)
 
 
 class ConfigurationError(Exception):
