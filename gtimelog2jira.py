@@ -19,6 +19,7 @@ try:
 except ImportError:
     keyring = None
 
+keyring = None
 
 assert sys.version_info >= (3, 6), "You need Python 3.6 or newer"
 
@@ -68,6 +69,7 @@ def read_config(config_file: pathlib.Path) -> dict:
     timelog = config.get('gtimelog2jira', 'timelog')
     jiralog = config.get('gtimelog2jira', 'jiralog')
     projects = config.get('gtimelog2jira', 'projects')
+    midnight = config.get('gtimelog', 'virtual_midnight', fallback='06:00')
 
     if not url:
         raise ConfigurationError("Jira URL is not specified, set Jira URL via gtimelog2jira.jira setting.")
@@ -147,6 +149,7 @@ def read_config(config_file: pathlib.Path) -> dict:
         'projects': projects,
         'aliases': aliases,
         'session': session,
+        'midnight': midnight,
     }
 
 
@@ -435,7 +438,7 @@ def _main(argv=None, stdout=sys.stdout):
         return 1
 
     with config['timelog'].open() as f:
-        entries = read_timelog(f)
+        entries = read_timelog(f, midnight=config['midnight'])
         entries = parse_timelog(entries, config['projects'], config['aliases'])
         entries = filter_timelog(entries, since=args.since, until=args.until,
                                  issue=config['aliases'].get(args.issue, args.issue))
