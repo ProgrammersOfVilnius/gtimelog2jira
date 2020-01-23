@@ -19,7 +19,6 @@ try:
 except ImportError:
     keyring = None
 
-keyring = None
 
 assert sys.version_info >= (3, 6), "You need Python 3.6 or newer"
 
