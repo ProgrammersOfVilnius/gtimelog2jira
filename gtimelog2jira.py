@@ -222,7 +222,9 @@ def parse_timelog(entries: Iterable[Entry], projects: Iterable[str], aliases: Di
         if comment.endswith(issue):
             comment = comment[:-len(issue)].strip()
 
-        yield WorkLog(entry, issue, comment)
+        worklog = WorkLog(entry, issue, comment)
+        if worklog.seconds > 0:
+            yield worklog
 
 
 def get_now():
