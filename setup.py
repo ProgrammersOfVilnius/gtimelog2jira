@@ -9,12 +9,8 @@ setup(
     py_modules=['gtimelog2jira'],
     install_requires=[
         'requests',
+        'keyring',
     ],
-    extras_require={
-        'keyring': [
-            'keyring',
-        ],
-    },
     entry_points={
         'console_scripts': [
             'gtimelog2jira=gtimelog2jira:main',
