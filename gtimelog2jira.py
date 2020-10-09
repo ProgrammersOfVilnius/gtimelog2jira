@@ -10,15 +10,11 @@ import pathlib
 import re
 import sys
 import urllib.parse
-from typing import Iterable, Dict
+from typing import Dict, Iterable
 
+import keyring
 import requests
-
-try:
-    import keyring
-except ImportError:
-    keyring = None
-
+from keyring.errors import NoKeyringError
 
 assert sys.version_info >= (3, 6), "You need Python 3.6 or newer"
 
@@ -107,27 +103,33 @@ def read_config(config_file: pathlib.Path) -> dict:
     session = requests.Session()
 
     if not password:
-        if keyring:
+        try:
             password = keyring.get_password(url, username)
-        else:
-            print("'keyring' module not available: you'll have to enter the password on every run.")
-            print("To avoid that, 'pip install keyring'.")
+        except NoKeyringError as err:
+            print("keyring:", err)
 
     attempts = range(3)
     for attempt in attempts:
         if attempt > 0 or not password:
             password = getpass.getpass('Enter Jira password for %s at %s: ' % (username, url))
-            if keyring:
-                print("Saving the password in the system keyring.")
+            try:
                 keyring.set_password(url, username, password)
+            except NoKeyringError:
+                print("Failed to save the password in the system keyring.")
+            else:
+                print("Saved the password in the system keyring.")
 
         session.auth = (username, password)
         resp = session.get('%s/myself' % api)
         if resp.ok:
             break
         elif resp.status_code == 401:
-            if keyring:
+            try:
                 keyring.delete_password(url, username)
+            except NoKeyringError:
+                pass
+            else:
+                print("Removed the saved incorrect password from the system keyring.")
             raise ConfigurationError("Error: Incorrect password or username.")
         elif resp.status_code == 403:
             raise ConfigurationError(
