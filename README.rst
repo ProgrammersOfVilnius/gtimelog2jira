@@ -3,8 +3,8 @@
 Synchronize gTimeLog to Jira
 ############################
 
-.. image:: https://travis-ci.com/ProgrammersOfVilnius/gtimelog2jira.svg?branch=master
-    :target: https://travis-ci.com/ProgrammersOfVilnius/gtimelog2jira
+.. image:: https://github.com/ProgrammersOfVilnius/gtimelog2jira/workflows/build/badge.svg?branch=master
+    :target: https://github.com/ProgrammersOfVilnius/gtimelog2jira/actions
 
 
 This simple script will read your `timelog.txt` file populated by gtimelog_ and will submit work log
