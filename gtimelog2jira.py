@@ -118,7 +118,6 @@ def read_config(config_file: pathlib.Path) -> dict:
                 print("Failed to save the password in the system keyring.")
             else:
                 print("Saved the password in the system keyring.")
-
         session.auth = (username, password)
         resp = session.get('%s/myself' % api)
         if resp.ok:
@@ -247,21 +246,21 @@ def filter_timelog(entries: Iterable[WorkLog], *, since=None, until=None, issue=
         yield entry
 
 
-def get_jira_worklog(session, api_url, issue, author_name=None) -> Iterable[JiraWorkLog]:
+def get_jira_worklog(session, api_url, issue, author_id=None) -> Iterable[JiraWorkLog]:
     resp = session.get(api_url + '/issue/' + issue + '/worklog')
     for worklog in resp.json().get('worklogs', []):
-        if author_name and worklog['author']['name'] != author_name:
+        if author_id and worklog['author']['accountId'] != author_id:
             continue
         started = datetime.datetime.strptime(worklog['started'], '%Y-%m-%dT%H:%M:%S.%f%z')
         ended = started + datetime.timedelta(seconds=worklog['timeSpentSeconds'])
         yield JiraWorkLog(worklog['id'], started, ended)
 
 
-def sync_with_jira(session, api_url, entries: Iterable[WorkLog], dry_run=False, author_name=None) -> Iterable[JiraSyncStatus]:
+def sync_with_jira(session, api_url, entries: Iterable[WorkLog], dry_run=False, author_id=None) -> Iterable[JiraSyncStatus]:
     sort_key = operator.attrgetter('issue')
     entries = sorted(entries, key=sort_key)
     for issue, entries in itertools.groupby(entries, key=sort_key):
-        worklog = list(get_jira_worklog(session, api_url, issue, author_name))
+        worklog = list(get_jira_worklog(session, api_url, issue, author_id))
         for entry in entries:
             overlap = [x for x in worklog if x.start >= entry.start and x.end <= entry.end]
             if overlap:
@@ -445,8 +444,9 @@ def _main(argv=None, stdout=sys.stdout):
         entries = parse_timelog(entries, config['projects'], config['aliases'])
         entries = filter_timelog(entries, since=args.since, until=args.until,
                                  issue=config['aliases'].get(args.issue, args.issue))
+        import pdb; pdb.set_trace()
         entries = sync_with_jira(config['session'], config['api'], entries, dry_run=args.dry_run,
-                                 author_name=config['self']['name'])
+                                 author_id=config['self']['accountId'])
         entries = log_jira_sync(entries, config['jiralog'])
         show_results(entries, stdout, config['url'], verbose=args.verbose)
 
