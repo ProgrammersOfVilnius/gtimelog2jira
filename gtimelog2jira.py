@@ -444,7 +444,6 @@ def _main(argv=None, stdout=sys.stdout):
         entries = parse_timelog(entries, config['projects'], config['aliases'])
         entries = filter_timelog(entries, since=args.since, until=args.until,
                                  issue=config['aliases'].get(args.issue, args.issue))
-        import pdb; pdb.set_trace()
         entries = sync_with_jira(config['session'], config['api'], entries, dry_run=args.dry_run,
                                  author_id=config['self']['accountId'])
         entries = log_jira_sync(entries, config['jiralog'])
