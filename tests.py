@@ -4,7 +4,6 @@ import io
 import itertools
 import pathlib
 import re
-import os
 
 import pytest
 import requests_mock
@@ -109,6 +108,7 @@ class JiraApi:
             'displayName': name,
             'emailAddress': username,
             'key': username,
+            'accountId': hash(username),
             'name': username,
             'self': self.url + self.base + '/user?username' + username,
             'timeZone': 'Europe/Helsinki',
@@ -262,7 +262,7 @@ class Env:
         return self.stdout.getvalue().splitlines()
 
 
-@pytest.yield_fixture
+@pytest.fixture
 def env(tmpdir, mocker):
     with requests_mock.Mocker() as mock:
         jira = JiraApi(mock)
