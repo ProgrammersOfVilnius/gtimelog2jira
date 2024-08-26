@@ -64,7 +64,7 @@ def read_config(config_file: pathlib.Path) -> dict:
     timelog = config.get('gtimelog2jira', 'timelog')
     jiralog = config.get('gtimelog2jira', 'jiralog')
     projects = config.get('gtimelog2jira', 'projects')
-    include = config.get('gtimelog2jira', 'include')
+    include = config.get('gtimelog2jira', 'include', fallback='')
     midnight = config.get('gtimelog', 'virtual_midnight', fallback='06:00')
 
     if not url:
