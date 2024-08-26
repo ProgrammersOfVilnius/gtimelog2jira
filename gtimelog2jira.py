@@ -341,7 +341,7 @@ def build_issue_url(jira_url, issue_number):
     return urllib.parse.urljoin(jira_url, 'browse/' + issue_number)
 
 
-def show_results(entries: Iterable[JiraSyncStatus], stdout, jira_url, verbose=0):
+def show_results(entries: Iterable[JiraSyncStatus], stdout, jira_url, aliases: Dict[str, str], verbose=0):
     totals = {
         'seconds': collections.defaultdict(int),
         'entries': collections.defaultdict(int),
@@ -350,6 +350,7 @@ def show_results(entries: Iterable[JiraSyncStatus], stdout, jira_url, verbose=0)
         'partial_overlap_seconds': collections.defaultdict(int),
         'partial_overlap_entries': collections.defaultdict(int),
     }
+    reverse_aliases = {v: k for k, v in aliases.items()}
 
     print(file=stdout)
 
@@ -395,24 +396,39 @@ def show_results(entries: Iterable[JiraSyncStatus], stdout, jira_url, verbose=0)
         for issue, seconds in sorted(totals['seconds'].items()):
             entries = totals['entries'][issue]
             issue_url = build_issue_url(jira_url, issue)
+            alias = reverse_aliases.get(issue, '')
             time_spent = human_readable_time(seconds, cols=True)
-            print('%10s: %8s (%s), %s' % (issue, time_spent, entries, issue_url), file=stdout)
+            print(
+                '%10s: %8s (%s), %s%s'
+                % (issue, time_spent, entries, issue_url, alias and f' ({alias})'),
+                file=stdout,
+            )
     if totals['overlap_seconds'] and verbose >= 1:
         print(file=stdout)
         print('TOTAL OVERLAP:', file=stdout)
         for issue, seconds in sorted(totals['overlap_seconds'].items()):
             entries = totals['overlap_entries'][issue]
             issue_url = build_issue_url(jira_url, issue)
+            alias = reverse_aliases.get(issue, '')
             time_spent = human_readable_time(seconds, cols=True)
-            print('%10s: %8s (%s), %s' % (issue, time_spent, entries, issue_url), file=stdout)
+            print(
+                '%10s: %8s (%s), %s%s'
+                % (issue, time_spent, entries, issue_url, alias and f' ({alias})'),
+                file=stdout,
+            )
     if totals['partial_overlap_seconds']:
         print(file=stdout)
         print('WARNING!  Some entries had partial overlap with existing entries and were skipped:', file=stdout)
         for issue, seconds in sorted(totals['partial_overlap_seconds'].items()):
             entries = totals['partial_overlap_entries'][issue]
             issue_url = build_issue_url(jira_url, issue)
+            alias = reverse_aliases.get(issue, '')
             time_spent = human_readable_time(seconds, cols=True)
-            print('%10s: %8s (%s), %s' % (issue, time_spent, entries, issue_url), file=stdout)
+            print(
+                '%10s: %8s (%s), %s%s'
+                % (issue, time_spent, entries, issue_url, alias and f' ({alias})'),
+                file=stdout,
+            )
 
 
 def _main(argv=None, stdout=sys.stdout):
@@ -447,7 +463,7 @@ def _main(argv=None, stdout=sys.stdout):
         entries = sync_with_jira(config['session'], config['api'], entries, dry_run=args.dry_run,
                                  author_id=config['self']['accountId'])
         entries = log_jira_sync(entries, config['jiralog'])
-        show_results(entries, stdout, config['url'], verbose=args.verbose)
+        show_results(entries, stdout, config['url'], config['aliases'], verbose=args.verbose)
 
 
 def main(argv=None, stdout=sys.stdout):
