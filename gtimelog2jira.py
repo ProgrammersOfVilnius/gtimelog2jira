@@ -64,6 +64,7 @@ def read_config(config_file: pathlib.Path) -> dict:
     timelog = config.get('gtimelog2jira', 'timelog')
     jiralog = config.get('gtimelog2jira', 'jiralog')
     projects = config.get('gtimelog2jira', 'projects')
+    include = config.get('gtimelog2jira', 'include')
     midnight = config.get('gtimelog', 'virtual_midnight', fallback='06:00')
 
     if not url:
@@ -81,6 +82,8 @@ def read_config(config_file: pathlib.Path) -> dict:
         aliases = dict(config.items('gtimelog2jira:aliases'))
     else:
         aliases = {}
+
+    include = set(aliases.get(issue, issue) for issue in include.split())
 
     if not timelog:
         timelog = config_file.parent / 'timelog.txt'
@@ -147,6 +150,7 @@ def read_config(config_file: pathlib.Path) -> dict:
         'timelog': timelog,
         'jiralog': jiralog,
         'projects': projects,
+        'include': include,
         'aliases': aliases,
         'session': session,
         'midnight': midnight,
@@ -193,28 +197,35 @@ def read_timelog(f: Iterable[str], midnight='06:00', tz=None) -> Iterable[Entry]
         yield Entry(last, last, last_note)
 
 
-def parse_timelog(entries: Iterable[Entry], projects: Iterable[str], aliases: Dict[str, str]) -> Iterable[WorkLog]:
+def parse_timelog(
+    entries: Iterable[Entry],
+    projects: Iterable[str],
+    aliases: Dict[str, str],
+    include: Iterable[str],
+) -> Iterable[WorkLog]:
     # Python's | operator prefers the leftmost branch instead of the longest possible match.
     # This is documented in https://docs.python.org/3/library/re.html#regular-expression-syntax
     sorted_aliases = sorted(aliases, key=len, reverse=True)
     issue_re = re.compile(r'\b(?:%s)\b' % '|'.join(
         [r'(?:%s)-\d+' % '|'.join(projects)] + sorted_aliases
     ))
+    include = set(include)
 
     for entry in entries:
         # Skip all non-work related entries.
         if entry.message.endswith('**'):
             continue
 
-        # Find first Jira issue id or skip entry.
+        # Find first suitable Jira issue id or skip entry.
         for match in issue_re.finditer(entry.message):
             issue = match.group()
-            break
+            # Resolve aliases
+            issue = aliases.get(issue, issue)
+            # Apply include list
+            if not include or issue in include:
+                break
         else:
             continue
-
-        # Resolve aliases
-        issue = aliases.get(issue, issue)
 
         # Clean up comment from categories and from issue id.
         comment = entry.message.rsplit(':', 1)[-1].strip()
@@ -457,7 +468,7 @@ def _main(argv=None, stdout=sys.stdout):
 
     with config['timelog'].open() as f:
         entries = read_timelog(f, midnight=config['midnight'])
-        entries = parse_timelog(entries, config['projects'], config['aliases'])
+        entries = parse_timelog(entries, config['projects'], config['aliases'], config['include'])
         entries = filter_timelog(entries, since=args.since, until=args.until,
                                  issue=config['aliases'].get(args.issue, args.issue))
         entries = sync_with_jira(config['session'], config['api'], entries, dry_run=args.dry_run,

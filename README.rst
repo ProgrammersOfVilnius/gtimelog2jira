@@ -60,6 +60,7 @@ file. Configuration file example:
     FOO
     BAR
     BAZ
+  include =
 
   [gtimelog2jira:aliases]
   # catch-all issue for all billed work not attributable to a specific ticket
@@ -70,9 +71,15 @@ interactively.  (If you also have the python-keyring package installed, the
 password will be remembered in your system keyring so you will not have to
 enter it again.)
 
-`projects` option should list all project prefixes. These prefixes will be used
+``projects`` option should list all project prefixes. These prefixes will be used
 to identify Jira issue IDs. If the script does not find anything that looks like
 a Jira ID, it will skip that entry.
+
+``include`` can be a list of all allowed issues, if you want to use a separate
+set of Jira tickets for time-keeping purposes.  Each work entry then should
+list the time-keeping issue next to the real issue (FOO-xxx, FOO-yyy), and
+the ``include`` option should list all the time-keeping tickets.  Aliases can
+be used here.
 
 
 TODO
