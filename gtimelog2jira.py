@@ -16,7 +16,7 @@ import keyring
 import requests
 from keyring.errors import NoKeyringError
 
-assert sys.version_info >= (3, 6), "You need Python 3.6 or newer"
+assert sys.version_info >= (3, 7), "You need Python 3.7 or newer"
 
 
 Entry = collections.namedtuple('Entry', ('start', 'end', 'message'))
