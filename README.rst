@@ -3,7 +3,7 @@
 Synchronize gTimeLog to Jira
 ############################
 
-.. image:: https://github.com/ProgrammersOfVilnius/gtimelog2jira/workflows/build/badge.svg?branch=master
+.. image:: https://github.com/ProgrammersOfVilnius/gtimelog2jira/actions/workflows/build.yml/badge.svg?branch=master
     :target: https://github.com/ProgrammersOfVilnius/gtimelog2jira/actions
 
 
